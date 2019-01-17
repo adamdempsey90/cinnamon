@@ -1,0 +1,19 @@
+nx1 = 1024
+gamma = 1.4
+cfl = .2
+x1_min = 0.
+x1_max = 1.
+tend = .2
+Nout0d = 100
+Nout1d = 10
+outputdir = out/
+outputname = test
+
+
+x0 = .3
+dL = 1.
+pL = 1.
+uL = 0.75
+dR = .125
+pR = .1
+uR = 0.

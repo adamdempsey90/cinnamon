@@ -24,8 +24,8 @@ __device__ __managed__ real g_param = .1;
 __device__ __managed__ real minF = .1;
 __device__ __managed__ real ksmooth = .1;
 
-__host__ __device__ real Tfunc(real z);
-__host__ __device__ real Pfunc(real z);
+__host__ __device__ real Tfunc(const real z);
+__host__ __device__ real Pfunc(const real z);
 __host__ __device__ static real eix(const real x);
 __host__ __device__ static real e1xb(const real x);
 
@@ -57,6 +57,37 @@ __host__ __device__ real heatcond_func(real dens, real x1, real x2, real x3,real
 __host__ __device__ real thermal_diff(real dens, real x1, real x2, real x3,real delad2) {
     return heatcond_func(dens,x1,x2,x3,delad2)/dens/delad2;
 }
+__device__ void ic_lower(int indxg, int i, int j, int k, real *cons, real *intenergy, real *x1, real *x2, real *x3,
+		int nx1, int nx2, int nx3, int ntot, int nf, int size_x1, int size_x12, int offset, real g, real time) {
+    /* Fixed temp with hydrostatic balance
+     * This additionally keeps a fixed radiative flux through the boundary
+     * 
+     * dP/dy = - d g
+     * rho*e = Cp*T*rho/gamma
+     * delT = -dT/dy *delad/g
+     * T = T0 +dT/dy (y-y0)
+     * P/P0 = (T/T0)^(1./delT)
+     * d/d0 = (T/T0)^(1./delT-1)
+     */
+    int n;
+    int indx_r = GINDEX(i,j,-k-1);
+    int indx = GINDEX(i,j,0);
+
+      /* Velocities are reflecting */
+    cons[indxg + 1*ntot] = cons[indx_r + 1*ntot];
+    cons[indxg + 2*ntot] = cons[indx_r + 2*ntot];
+    cons[indxg + 3*ntot] = -cons[indx_r + 3*ntot];
+    
+    
+
+    cons[indxg + 4*ntot] = intenergy[indxg]  + .5*(cons[indxg+1*ntot]*cons[indxg+1*ntot]
+    +cons[indxg + 2*ntot]*cons[indxg + 2*ntot]
+    +cons[indxg + 3*ntot]*cons[indxg + 3*ntot])/cons[indxg];
+
+
+
+    return;
+}
 
 __device__ void fixed_temp_lower(int indxg, int i, int j, int k, real *cons, real *intenergy, real *x1, real *x2, real *x3,
 		int nx1, int nx2, int nx3, int ntot, int nf, int size_x1, int size_x12, int offset, real g, real time) {
@@ -87,9 +118,10 @@ __device__ void fixed_temp_lower(int indxg, int i, int j, int k, real *cons, rea
 
     kap = heatcond_func(cons[indx], x1[i],x2[j],x0,delad);
     f = -kap*(Ts - Tbot)/(x3[0]-x0) / Ftot;
-    Tval = Tbot + f*log((1-slope*x3[k])/(1 + slope))/slope;
 
+    Tval = Tbot + f*log((1-slope*x3[k])/(1 + slope))/slope;
     Pval = Pbot*exp(1./delad * (1 + slope)*exp(-slope/f*Tbot)*(eix(slope/f*Tval)-eix(slope/f*Tbot)));
+
     //printf("%d\t%lg\t%lg\t%lg\t%lg\t%lg\t%lg\t%lg\t%lg\t%lg\n",j,kap,Ts,Tbot,Tval,Tfunc(x2[j]),Pval,f,Ts,Tfunc(x2[0]));
     cons[indxg] =  Pval/(delad*Tval);
     intenergy[indxg] = Pval/(g-1);
@@ -172,7 +204,7 @@ __device__ void fixed_flux_upper(int indxg, int i, int j, int k, real *cons, rea
     return;
 }
 __device__ void x3_boundary_inner(int indxg, int i, int j,int k, real *cons, real *intenergy, real *x1, real *x2, real *x3, int nx1, int nx2, int nx3, int ntot, int nf, int size_x1, int size_x12, int offset, real g, real time) {
-	fixed_temp_lower(indxg,i,j,k,cons,intenergy,x1,x2,x3,nx1,nx2,nx3,ntot,nf,size_x1,size_x12,offset,g,time);
+	ic_lower(indxg,i,j,k,cons,intenergy,x1,x2,x3,nx1,nx2,nx3,ntot,nf,size_x1,size_x12,offset,g,time);
 	return;
 }
 __device__ void x3_boundary_outer(int indxg, int i, int j,int k, real *cons, real *intenergy, real *x1, real *x2, real *x3, int nx1, int nx2, int nx3, int ntot, int nf, int size_x1, int size_x12, int offset, real g, real time) {
@@ -434,7 +466,7 @@ __host__ __device__ static real eix(const real x) {
 }
 
 
-__host__ __device__ real Tfunc(real z) {
+__host__ __device__ real Tfunc(const real z) {
 
     if (z < -loz) {
         return T0 + log((1-slope*z)/(1+slope*loz))/slope;
@@ -446,7 +478,7 @@ __host__ __device__ real Tfunc(real z) {
 
     return Ttop - log((1-slope*(1-z))/(1+slope))/slope;
 }
-__host__ __device__ real Pfunc(real z) {
+__host__ __device__ real Pfunc(const real z) {
 	real Tval = Tfunc(z);
     if (z < -loz) {
         return P0*exp((1+slope*loz)/delad *exp(-slope*T0)*(eix(slope*Tval)-eix(slope*T0)));

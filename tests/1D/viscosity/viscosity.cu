@@ -1,23 +1,20 @@
-/* 1D Heat conduction problem
+/* 1D viscous diffusion problem
  *
- * The self-similar solution of the temperature at any time is
+ * The self-similar solution of the density at any time is
  *
- * T(x,t) = T0/sqrt(pi s) exp(-x^2/s)
- * where s = 4 * chi * (t-t0)
+ * d(x,t) = d0/sqrt(pi s) exp(-x^2/s)
+ * where s = 4 * nu * (t-t0)
  *
  *  */
 #include "defs.h"
 #include <time.h>
 #include "cuda_defs.h"
 
-__device__ __managed__ real cond = .01;
+__device__ __managed__ real nu = .01;
 
 
-__device__ real heatcond_func(real dens, real x1, real x2, real x3,real delad) {
-    return cond;
-}
-__device__ real thermal_diff(real dens, real x1, real x2, real x3,real delad) {
-    return heatcond_func(dens,x1,x2,x3,delad)/dens/delad;
+__device__ real kinematic_viscosity(real x1, real x2, real x3) {
+    return nu;
 }
 
 /* Select boundary conditions */
@@ -55,9 +52,9 @@ void init_gas(GridCons *grid, Parameters *params) {
     ntot = grid->ntot;
     nf = grid->nf;
 
-    cond = params->kappa;
+    nu = params->nu;
     real w = params->width;
-    real tinit = params->tinit;
+    real dinit = params->dinit;
 
 
 
@@ -71,17 +68,14 @@ void init_gas(GridCons *grid, Parameters *params) {
     real *intenergy = grid->intenergy; 
 
     real gamma = params->gamma ;
-    real delad = 1. - 1./gamma;
 
     real ke;
 
     real u1 = 0;
     real u2 = 0;
     real u3 = 0;
-    real temp;
-    real chi = cond / (1 - 1./gamma);
+    real pres;
     real t = .1;
-    real pres = 1.;
 
 
 
@@ -92,9 +86,9 @@ void init_gas(GridCons *grid, Parameters *params) {
 
 
 				// Set gaussian temp ic.
-				temp = (tinit-1)*exp(-x1[i]*x1[i]/(4*chi*t))/sqrt(4*M_PI*chi*t) + 1.;
+				rho[indx] = (dinit-1)*exp(-x1[i]*x1[i]/(4*nu*t))/sqrt(4*M_PI*nu*t) + 1.;
 
-				rho[indx] = pres/(temp*delad);
+				pres = 1.;
 
 				mx1[indx] = u1*rho[indx];
 				mx2[indx] = u2*rho[indx];
@@ -102,7 +96,7 @@ void init_gas(GridCons *grid, Parameters *params) {
 
 				ke = mx1[indx]*mx1[indx] + mx2[indx]*mx2[indx] + mx3[indx]*mx3[indx];
 				ke /= 2*rho[indx];
-				intenergy[indx] = temp *rho[indx]/ gamma;
+				intenergy[indx] = pres/ (gamma-1);
 				energy[indx] = intenergy[indx] + ke;
 				for(n=5;n<nf;n++) {
 					grid->cons[n*ntot+indx] = 0;

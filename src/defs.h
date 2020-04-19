@@ -54,7 +54,7 @@
 	#define DIMS1
 #endif
 #else
-	#define NGHX2 NGHX1
+	#define NGHX2 0
 #endif
 
 

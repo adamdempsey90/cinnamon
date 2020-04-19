@@ -1,32 +1,16 @@
-/* 1D Heat conduction problem
- *
- * The self-similar solution of the temperature at any time is
- *
- * T(x,t) = T0/sqrt(pi s) exp(-x^2/s)
- * where s = 4 * chi * (t-t0)
- *
- *  */
+/* 1D Sod Shock Tube */
 #include "defs.h"
 #include <time.h>
 #include "cuda_defs.h"
 
-__device__ __managed__ real cond = .01;
-
-
-__device__ real heatcond_func(real dens, real x1, real x2, real x3,real delad) {
-    return cond;
-}
-__device__ real thermal_diff(real dens, real x1, real x2, real x3,real delad) {
-    return heatcond_func(dens,x1,x2,x3,delad)/dens/delad;
-}
 
 /* Select boundary conditions */
 __device__ void x1_boundary_inner(int indxg, int i, int j,int k, real *cons, real *intenergy, real *x1, real *x2, real *x3, int nx1, int nx2, int nx3, int ntot, int nf, int size_x1, int size_x12, int offset, real g, real time) {
-	//outflow_boundary_inner(1,indxg,i,j,k,cons,intenergy,nx1,nx2,nx3,ntot,nf,size_x1,size_x12,offset,g,time);
+	reflecting_boundary_inner(1,indxg,i,j,k,cons,intenergy,nx1,nx2,nx3,ntot,nf,size_x1,size_x12,offset,g,time);
 	return;
 }
 __device__ void x1_boundary_outer(int indxg, int i, int j,int k, real *cons, real *intenergy, real *x1, real *x2, real *x3, int nx1, int nx2, int nx3, int ntot, int nf, int size_x1, int size_x12, int offset, real g, real time) {
-	//outflow_boundary_outer(1,indxg,i,j,k,cons,intenergy,nx1,nx2,nx3,ntot,nf,size_x1,size_x12,offset,g,time);
+	reflecting_boundary_outer(1,indxg,i,j,k,cons,intenergy,nx1,nx2,nx3,ntot,nf,size_x1,size_x12,offset,g,time);
 	return;
 }
 
@@ -55,13 +39,7 @@ void init_gas(GridCons *grid, Parameters *params) {
     ntot = grid->ntot;
     nf = grid->nf;
 
-    cond = params->kappa;
-    real w = params->width;
-    real tinit = params->tinit;
-
-
-
-    real *x1 = grid->xc1;
+    real *xm1 = grid->xm1;
 
     real *rho       = &grid->cons[0*ntot];
     real *mx1       = &grid->cons[1*ntot];
@@ -70,18 +48,13 @@ void init_gas(GridCons *grid, Parameters *params) {
     real *energy    = &grid->cons[4*ntot];
     real *intenergy = grid->intenergy; 
 
-    real gamma = params->gamma ;
-    real delad = 1. - 1./gamma;
-
+    real gamma_1 = params->gamma - 1;
     real ke;
 
     real u1 = 0;
     real u2 = 0;
     real u3 = 0;
-    real temp;
-    real chi = cond / (1 - 1./gamma);
-    real t = .1;
-    real pres = 1.;
+    real pres;
 
 
 
@@ -90,19 +63,34 @@ void init_gas(GridCons *grid, Parameters *params) {
 			for(i=-NGHX1;i<nx1+NGHX1;i++) {
 				indx = INDEX(i,j,k);
 
+				if (xm1[i] <= params->x0) {
+					/* Left */
+					rho[indx] = params->dl;
+					pres = params->pl;
+					u1 = params->ul;
+				}
+				else {
+					if (xm1[i] >= params->xr) {
+						/* center */
+						rho[indx] = params->dr;
+						pres = params->pr;
+						u1 = params->ur;
+					}
+					else {
+					/* center */
+						rho[indx] = params->dc;
+						pres = params->pc;
+						u1 = params->uc;
+					}
 
-				// Set gaussian temp ic.
-				temp = (tinit-1)*exp(-x1[i]*x1[i]/(4*chi*t))/sqrt(4*M_PI*chi*t) + 1.;
-
-				rho[indx] = pres/(temp*delad);
-
+				}
 				mx1[indx] = u1*rho[indx];
 				mx2[indx] = u2*rho[indx];
 				mx3[indx] = u3*rho[indx];
 
 				ke = mx1[indx]*mx1[indx] + mx2[indx]*mx2[indx] + mx3[indx]*mx3[indx];
 				ke /= 2*rho[indx];
-				intenergy[indx] = temp *rho[indx]/ gamma;
+				intenergy[indx] = pres/gamma_1;
 				energy[indx] = intenergy[indx] + ke;
 				for(n=5;n<nf;n++) {
 					grid->cons[n*ntot+indx] = 0;

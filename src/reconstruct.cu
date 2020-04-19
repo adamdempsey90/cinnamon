@@ -107,19 +107,19 @@ __global__ void reconstruct(real *cons, real *UL, real *UR, real *dx,
     dir3 = (dir2)%3 + 1;
 
     if (dir1 == 1) {
-        il = -2; iu = nx1+2;
+        il = -2; iu = nx1+3;
         jl = -NGHX2; ju = nx2+NGHX2;
         kl = -NGHX3; ku = nx3 + NGHX3;
     }
     else if (dir1 == 2) {
         il = -NGHX1; iu = nx1+NGHX1;
-        jl = -2; ju = nx2+2;
+        jl = -2; ju = nx2+3;
         kl = -NGHX3; ku = nx3 + NGHX3;
     }
     else {
     	il = -NGHX1; iu = nx1+NGHX1;
 		jl = -NGHX2; ju = nx2+NGHX2;
-		kl = -2; ku = nx3 + 2;
+		kl = -2; ku = nx3 + 3;
     }
 
     for(indx = blockIdx.x*blockDim.x + threadIdx.x; indx<ntot; indx+=blockDim.x*gridDim.x) {
@@ -147,36 +147,45 @@ __global__ void reconstruct(real *cons, real *UL, real *UR, real *dx,
             	dxp = dx[k+1];
             }
             dtdx = .5*dt/dxc;
-            dL  = cons[indxm + 0*ntot];
+            dL  = MAX2(PRESSUREFLOOR,cons[indxm + 0*ntot]);
             dLi = dL;
             uL  = cons[indxm + dir1*ntot]/dL;
             uL2 = cons[indxm + dir2*ntot]/dL;
             uL3 = cons[indxm + dir3*ntot]/dL;
             eL  = cons[indxm + 4*ntot];
+#ifndef DUAL_ENERGY
             pL = (eL-.5*dL*(uL*uL+uL2*uL2+uL3*uL3))*g1;
+#else
+            pL = E_from_S(dL,cons[indxm + 5*ntot],g1)*g1;
+#endif
 
-            if (dL < PRESSUREFLOOR) dL = PRESSUREFLOOR;
             if (pL < PRESSUREFLOOR) pL = PRESSUREFLOOR;
 
-            dC  = cons[indx + 0*ntot];
+            dC  = MAX2(PRESSUREFLOOR,cons[indx + 0*ntot]);
             dCi = dC;
             uC  = cons[indx + dir1*ntot]/dC;
             uC2 = cons[indx + dir2*ntot]/dC;
             uC3 = cons[indx + dir3*ntot]/dC;
             eC  = cons[indx + 4*ntot];
+#ifndef DUAL_ENERGY
             pC = (eC-.5*dC*(uC*uC+uC2*uC2+uC3*uC3))*g1;
+#else
+            pC = E_from_S(dC,cons[indx + 5*ntot],g1)*g1;
+#endif
 
-            if (dC < PRESSUREFLOOR) dC = PRESSUREFLOOR;
             if (pC < PRESSUREFLOOR) pC = PRESSUREFLOOR;
 
-            dR  = cons[indxp + 0*ntot];
+            dR  = MAX2(PRESSUREFLOOR,cons[indxp + 0*ntot]);
             dRi = dR;
             uR  = cons[indxp + dir1*ntot]/dR;
             uR2 = cons[indxp + dir2*ntot]/dR;
             uR3 = cons[indxp + dir3*ntot]/dR;
             eR  = cons[indxp + 4*ntot];
+#ifndef DUAL_ENERGY
             pR = (eR-.5*dR*(uR*uR+uR2*uR2+uR3*uR3))*g1;
-            if (dR < PRESSUREFLOOR) dR = PRESSUREFLOOR;
+#else
+            pR = E_from_S(dR,cons[indxp + 5*ntot],g1)*g1;
+#endif
             if (pR < PRESSUREFLOOR) pR = PRESSUREFLOOR;
 
 

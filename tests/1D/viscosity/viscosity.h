@@ -11,7 +11,7 @@
 
 
 //#define POTENTIAL
-//#define CONDUCTION
+#define VISCOSITY
 
 
 #define EXACT
@@ -20,4 +20,3 @@
 //#define HLL
 //#define HLLC
 
-#define RPROB

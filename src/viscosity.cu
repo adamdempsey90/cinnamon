@@ -75,6 +75,7 @@ __global__ void viscous_flux(real *vel, real *rho, real *F_1, real *F_2, real *F
 	 */
 
     int i,j,k;
+    int il,iu,jl,ju,kl,ku;
     int indx;
     real s1,s2,s3,visc;
     real *divv = &vel[0];
@@ -86,6 +87,7 @@ __global__ void viscous_flux(real *vel, real *rho, real *F_1, real *F_2, real *F
     real *F12 = &F_1[2*ntot];
     real *F13 = &F_1[3*ntot];
     real *F1e = &F_1[4*ntot];
+
 #ifdef DIMS2
     real *F21 = &F_2[1*ntot];
 	real *F22 = &F_2[2*ntot];
@@ -101,15 +103,29 @@ __global__ void viscous_flux(real *vel, real *rho, real *F_1, real *F_2, real *F
 
 #endif
     s1=0; s2=0; s3=0;
+
+
+    il = -NGHX1; iu = nx1+2;
+#ifdef DIMS2
+    jl = -NGHX2 +1; ju = nx2+2;
+#else
+
+    jl = -NGHX2; ju = nx2+2;
+#endif
+#ifdef DIMS2
+    kl = -NGHX3 +1; ku = nx3+2;
+#else
+    kl = -NGHX3; ku = nx3+2;
+#endif
     for(indx = blockIdx.x*blockDim.x + threadIdx.x; indx<ntot; indx+=blockDim.x*gridDim.x) {
     	unpack_indices(indx,&i,&j,&k,size_x1,size_x12);
-
         /* X1 direction */
-        if ((i>=-NGHX1)&&(i<nx1+2)&&(j>=-NGHX2+1)&&(j<nx2+2)&&(k>=-NGHX3+1)&&(k<nx3+2)) {
+        if ((i>=il)&&(i<iu)&&(j>=jl)&&(j<ju)&&(k>=kl)&&(k<ku)) {
         	visc=  .5*(rho[indx] + rho[indx+1]) * kinematic_viscosity(x1[i] +.5*dx1[i], x2[j], x3[k]);
 
             s1 = 2*(vx1[indx+1] - vx1[indx])/dx1[i] + (divv[indx] + divv[indx+1])/3.;
             s2 = (vx2[indx+1]-vx2[indx])/dx1[i];
+            printf("%d %lg %lg %lg %lg %lg %lg\n",indx, vx1[indx],vx1[indx+1],vx2[indx],vx2[indx+1],divv[indx],divv[indx+1]);
 #ifdef DIMS2
             s2 += .25*( (vx1[indx+1 + size_x1] - vx1[indx+1 - size_x1])/dx2[j+1] + (vx1[indx+size_x1]-vx1[indx-size_x1])/dx2[j]);
 #endif
@@ -123,6 +139,7 @@ __global__ void viscous_flux(real *vel, real *rho, real *F_1, real *F_2, real *F
             F1e[indx] -= .5*visc*( (vx1[indx + 1] + vx1[indx])*s1
             		 	 	 	+(vx2[indx + 1] + vx2[indx])*s2
             		 	 	 	+(vx3[indx + 1] + vx3[indx])*s3);
+            //printf("%lg %lg %lg %lg %lg\n", x1[i], F11[indx], F12[indx], F12[indx], F1e[indx]);
         }
         /* X2 direction */
 #ifdef DIMS2

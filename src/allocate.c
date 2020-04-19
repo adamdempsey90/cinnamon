@@ -16,6 +16,9 @@ void allocate(GridCons *grid,Parameters *params) {
     ntot = size_x1*size_x2*size_x3;
 
     nscalars = params->nscalars;
+#ifdef DUAL_ENERGY
+    nscalars += 1;
+#endif
     nf = 5 + nscalars; // rho/mx1/mx2/mx3/energy  + num scalars
 
     grid->nscalars = nscalars;

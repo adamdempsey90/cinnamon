@@ -75,6 +75,7 @@ void algogas_single(real dt,
     /* Store velocities and divergence in one of
      * the reconstruction arrays
      */
+    printf("VISC1\n");
      compute_divergence<<<grid->gridSize_divergence, grid->blockSize_divergence>>>(d_cons,
             d_UL_1,
             d_dx1,
@@ -92,6 +93,8 @@ void algogas_single(real dt,
             offset,
             nf);
     cudaCheckError();
+    printf("VISC2\n");
+
     viscous_flux<<<grid->gridSize_viscous_flux, grid->blockSize_viscous_flux>>>(d_UL_1,
     		d_cons,
            d_F_1,
@@ -123,6 +126,7 @@ void algogas_single(real dt,
 		   d_dx1,
 		   d_dx2,
 		   d_dx3,
+           params->gamma-1,
 		   dt,
 		   nx1,
 		   nx2,
@@ -316,6 +320,7 @@ void algogas_single(real dt,
 			d_dx1,
 			d_dx2,
 			d_dx3,
+           params->gamma-1,
 			dt,
 			nx1,
 			nx2,
@@ -452,6 +457,7 @@ void algogas_single(real dt,
             d_dx1,
             d_dx2,
             d_dx3,
+           params->gamma-1,
             dt,
             nx1,
             nx2,
@@ -571,6 +577,9 @@ real set_bc_timestep(real dt_max,
 
     *nan_res = FALSE;
     for(int i=0;i<blocks;i++) *nan_res |= h_nan_arr[i];
+    if (*nan_res) {
+        return -dt;
+    }
 
     return dt;
 }
@@ -637,4 +646,11 @@ __global__ void zero_flux_array(real *F1, real *F2, real *F3, int ntot, int nf) 
 		}
 	}
 	return;
+}
+
+__device__ void cuda_ifelse(real condition, int *wtrue, int *wfalse) {
+    float w = (float)(condition - (int)condition);
+    *wtrue = (int)floorf(1. + w);
+    *wfalse = (int)floorf(.9999999f - w);
+    return;
 }

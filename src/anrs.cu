@@ -41,9 +41,9 @@ __device__ void anrs(const real dL,const real uL, const real pL, const real aL,
     
     if ( pstar < pmin ) {
      
-        plr = pow(pL/pR,g2);
+        plr = mypow(pL/pR,g2);
   
-        *ps = pow( ( aL + aR - .5*g1*(uR - uL))/(aL*pow(pL,-g2) + aR*pow(pR,-g2) ), 1./g2);
+        *ps = mypow( ( aL + aR - .5*g1*(uR - uL))/(aL*mypow(pL,-g2) + aR*mypow(pR,-g2) ), 1./g2);
         *us = (plr*uL/aL + uR/aR +  (plr - 1)*2/g1 )/(plr/aL + 1./aR);
       
     }

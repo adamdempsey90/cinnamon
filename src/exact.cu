@@ -15,8 +15,8 @@ __device__ void fk(const real p, const real dk, const real pk, const real ak, co
         *df = ( 1 - .5*(p-pk)/(Bk+p)  ) * sqrt(Ak/(p+Bk));
     }
     else {
-        *f =  2*ak/g1 *( pow(p/pk,g2) - 1.);
-        *df = 1./(ak*dk) * pow(p/pk,-g5);
+        *f =  2*ak/g1 *( mypow(p/pk,g2) - 1.);
+        *df = 1./(ak*dk) * mypow(p/pk,-g5);
     }
     return;
 
@@ -109,39 +109,45 @@ __device__ int exact_sample(const real dL, const real uL, const real pL, const r
             // Shock
             SL = uL - aL*sqrt( g5 * ps/pL + g2);
             if (S <= SL) {
+            	// Left of Shock
                 *u_f = uL;
                 *p_f = pL;
                 *d_f = dL;
                 return TRUE;
             }
             else {
+            	// Right of Shock
                 *u_f = us;
                 *p_f = ps;
-                *d_f = dL*(ps/pL +g3)/(g3*ps/pL+1); 
+                *d_f = dL*(ps/pL +g3)/(g3*ps/pL+1.);
                 return TRUE;
             }
         }
         else {
             // Rarefaction
             SHL = uL - aL;
-            STL = us - aL* pow(ps/pL,g2);
+            STL = us - aL* mypow(ps/pL,g2);
             if (S <= SHL) {
+            	// Left of head
                 *u_f = uL;
                 *p_f = pL;
                 *d_f = dL;
                 return TRUE;
             }
             else {
+            	// right of head
                 if (S <= STL) {
+                	// left of tail
                     *u_f = g4 *(aL + g1*uL/2. + S);
-                    *d_f = dL*pow(g4 + (uL-S)*g3/aL,2./g1);
-                    *p_f = pL*pow(g4 + (uL-S)*g3/aL,1/g2); 
+                    *p_f = pL*mypow(g4 + (uL-S)*g3/aL,1./g2);
+                    *d_f = dL*mypow(g4 + (uL-S)*g3/aL,2./g1);
                     return TRUE;
                 }
                 else {
+                	// right of tail
                     *u_f = us;
                     *p_f = ps;
-                    *d_f = dL *pow(ps/pL,1./g);
+                    *d_f = dL *mypow(ps/pL,1./g);
                     return TRUE;
                 }
 
@@ -149,41 +155,51 @@ __device__ int exact_sample(const real dL, const real uL, const real pL, const r
         }
     }
     else {
+    	// Right of contact
         if (ps > pR) {
+        	// Shock
             SR = uR + aR*sqrt( g5 *ps/pR + g2);
-            if (S<=SR) {
-                *u_f = us;
-                *p_f = ps;
-                *d_f = dR*(ps/pR + g3)/(g3 *ps/pR+1);
-                return FALSE;
-            }
-            else {
+            if (S>=SR) {
+            	// right of shock
                 *u_f = uR;
                 *p_f = pR;
                 *d_f = dR;
                 return FALSE;
             }
-        }
-        else {
-            SHR = uR + aR;
-            STR = us + aR* pow(ps/pR,g2);
-            if (S <= STR) {
+            else {
+            	// Left of shock
                 *u_f = us;
                 *p_f = ps;
-                *d_f = dR * pow(ps/pR,1./g);
+                *d_f = dR*(ps/pR + g3)/(g3 *ps/pR+1.);
                 return FALSE;
             }
+        }
+        else {
+        	// Rarefaction
+            SHR = uR + aR;
+            STR = us + aR* mypow(ps/pR,g2);
+            if (S >= SHR) {
+            	// right of head
+                *u_f = uR;
+                *p_f = pR;
+                *d_f = dR;
+                return FALSE;
+
+            }
             else {
-                if (S <= SHR) {
+                if (S >= STR) {
+                	// right of tail
                     *u_f = g4 *(-aR + g1*uR/2. + S);
-                    *p_f = pR*pow(g4 - g3 *(uR-S)/aR , 1./g2);
-                    *d_f = dR*pow( g4 - g3*(uR-S)/aR, 2./g1);
+                    *p_f = pR*mypow(g4 - g3 *(uR-S)/aR , 1./g2);
+                    *d_f = dR*mypow( g4 - g3*(uR-S)/aR, 2./g1);
                     return FALSE;
+
                 }
                 else {
-                    *u_f = uR;
-                    *p_f = pR;
-                    *d_f = dR;
+                	// left of tail
+                    *u_f = us;
+                    *p_f = ps;
+                    *d_f = dR * mypow(ps/pR,1./g);
                     return FALSE;
                 }
             }

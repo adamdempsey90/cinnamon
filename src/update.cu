@@ -24,7 +24,7 @@ __global__ void compute_dhalf(real *cons, real *dhalf, real *F_1, real *F_2,real
 }
 
 __global__ void update_cons(real *cons, real *intenergy, real *F_1, real *F_2, real *F_3,
-        real *dx1, real *dx2, real *dx3, real dt, int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf) {
+        real *dx1, real *dx2, real *dx3, real g1, real dt, int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf) {
     int i,j,k,n;
     int indx;
     int nan_check;
@@ -34,6 +34,9 @@ __global__ void update_cons(real *cons, real *intenergy, real *F_1, real *F_2, r
 #endif
 #ifdef DIMS3
     real dtdx3;
+#endif
+#ifdef DUAL_ENERGY
+    real Ein,Ek;
 #endif
 
     for(indx = blockIdx.x*blockDim.x + threadIdx.x; indx<ntot; indx+=blockDim.x*gridDim.x) {
@@ -58,10 +61,32 @@ __global__ void update_cons(real *cons, real *intenergy, real *F_1, real *F_2, r
 #endif
 
             }
+#ifdef DUAL_ENERGY
+            Ek = .5*(
+                    cons[indx + 1*ntot]*cons[indx + 1*ntot] +
+                    cons[indx + 2*ntot]*cons[indx + 2*ntot] +
+                    cons[indx + 3*ntot]*cons[indx + 3*ntot])/cons[indx];
+            Ein = cons[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(cons[indx], cons[indx+5*ntot],g1);
+                printf("d=%lg S=%lg Ein=%lg Ek=%lg \n", cons[indx], cons[indx + 5*ntot], Ein, Ek);
+                cons[indx + 4*ntot] = Ein + Ek;
+                intenergy[indx] = Ein;
+            }
+
+            else {
+                /* Sync S with Ein */
+                cons[indx + 5*ntot] = S_from_E(cons[indx], Ein, g1);
+                intenergy[indx] = Ein;
+            }
+
+#else
             intenergy[indx] = cons[indx+4*ntot] - .5*(
                     cons[indx + 1*ntot]*cons[indx + 1*ntot] +
                     cons[indx + 2*ntot]*cons[indx + 2*ntot] +
                     cons[indx + 3*ntot]*cons[indx + 3*ntot])/cons[indx];
+#endif
 
         }
     }
@@ -70,7 +95,7 @@ __global__ void update_cons(real *cons, real *intenergy, real *F_1, real *F_2, r
 }
 __global__ void transverse_update(real *UL_1, real *UL_2, real *UL_3,
         real *UR_1, real *UR_2, real *UR_3,
-        real *F_1, real *F_2, real *F_3, real *dx1, real *dx2, real *dx3, real dt,
+        real *F_1, real *F_2, real *F_3, real *dx1, real *dx2, real *dx3, real g1, real dt,
         int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf) {
 
 	/*
@@ -89,6 +114,9 @@ __global__ void transverse_update(real *UL_1, real *UL_2, real *UL_3,
     int i,j,k,n;
     int indx;
     real dtdx;
+#ifdef DUAL_ENERGY
+    real Ein,Ek;
+#endif
 
     for(indx = blockIdx.x*blockDim.x + threadIdx.x; indx<ntot;indx+=blockDim.x*gridDim.x) {
     	unpack_indices(indx,&i,&j,&k,size_x1,size_x12);
@@ -109,6 +137,36 @@ __global__ void transverse_update(real *UL_1, real *UL_2, real *UL_3,
 
 			}
 
+#endif
+#ifdef DUAL_ENERGY
+            Ek = .5*(
+                    UL_1[indx + 1*ntot]*UL_1[indx + 1*ntot] +
+                    UL_1[indx + 2*ntot]*UL_1[indx + 2*ntot] +
+                    UL_1[indx + 3*ntot]*UL_1[indx + 3*ntot])/UL_1[indx];
+            Ein = UL_1[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(UL_1[indx], UL_1[indx+5*ntot],g1);
+                UL_1[indx + 4*ntot] = Ein + Ek;
+            }
+            else {
+                /* Sync S with Ein */
+                UL_1[indx + 5*ntot] = S_from_E(UL_1[indx], Ein, g1);
+            }
+            Ek = .5*(
+                    UR_1[indx + 1*ntot]*UR_1[indx + 1*ntot] +
+                    UR_1[indx + 2*ntot]*UR_1[indx + 2*ntot] +
+                    UR_1[indx + 3*ntot]*UR_1[indx + 3*ntot])/UR_1[indx];
+            Ein = UR_1[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(UR_1[indx], UR_1[indx+5*ntot],g1);
+                UR_1[indx + 4*ntot] = Ein + Ek;
+            }
+            else {
+                /* Sync S with Ein */
+                UR_1[indx + 5*ntot] = S_from_E(UR_1[indx], Ein, g1);
+            }
 #endif
         }
         /* X2 - direction */
@@ -131,6 +189,36 @@ __global__ void transverse_update(real *UL_1, real *UL_2, real *UL_3,
 			}
 
 #endif
+#ifdef DUAL_ENERGY
+            Ek = .5*(
+                    UL_2[indx + 1*ntot]*UL_2[indx + 1*ntot] +
+                    UL_2[indx + 2*ntot]*UL_2[indx + 2*ntot] +
+                    UL_2[indx + 3*ntot]*UL_2[indx + 3*ntot])/UL_2[indx];
+            Ein = UL_2[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(UL_2[indx], UL_2[indx+5*ntot],g1);
+                UL_2[indx + 4*ntot] = Ein + Ek;
+            }
+            else {
+                /* Sync S with Ein */
+                UL_2[indx + 5*ntot] = S_from_E(UL_2[indx], Ein, g1);
+            }
+            Ek = .5*(
+                    UR_2[indx + 1*ntot]*UR_2[indx + 1*ntot] +
+                    UR_2[indx + 2*ntot]*UR_2[indx + 2*ntot] +
+                    UR_2[indx + 3*ntot]*UR_2[indx + 3*ntot])/UR_2[indx];
+            Ein = UR_2[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(UR_2[indx], UR_2[indx+5*ntot],g1);
+                UR_2[indx + 4*ntot] = Ein + Ek;
+            }
+            else {
+                /* Sync S with Ein */
+                UR_2[indx + 5*ntot] = S_from_E(UR_2[indx], Ein, g1);
+            }
+#endif
         }
         /* X3 - direction */
 #ifdef DIMS3
@@ -152,6 +240,36 @@ __global__ void transverse_update(real *UL_1, real *UL_2, real *UL_3,
 
 
         }
+#ifdef DUAL_ENERGY
+            Ek = .5*(
+                    UL_3[indx + 1*ntot]*UL_3[indx + 1*ntot] +
+                    UL_3[indx + 2*ntot]*UL_3[indx + 2*ntot] +
+                    UL_3[indx + 3*ntot]*UL_3[indx + 3*ntot])/UL_3[indx];
+            Ein = UL_3[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(UL_3[indx], UL_3[indx+5*ntot],g1);
+                UL_3[indx + 4*ntot] = Ein + Ek;
+            }
+            else {
+                /* Sync S with Ein */
+                UL_3[indx + 5*ntot] = S_from_E(UL_3[indx], Ein, g1);
+            }
+            Ek = .5*(
+                    UR_3[indx + 1*ntot]*UR_3[indx + 1*ntot] +
+                    UR_3[indx + 2*ntot]*UR_3[indx + 2*ntot] +
+                    UR_3[indx + 3*ntot]*UR_3[indx + 3*ntot])/UR_3[indx];
+            Ein = UR_3[indx + 4*ntot] - Ek;
+            if (Ein < DETOL*Ek) {
+                /* Set Ein from S */
+                Ein = E_from_S(UR_3[indx], UR_3[indx+5*ntot],g1);
+                UR_3[indx + 4*ntot] = Ein + Ek;
+            }
+            else {
+                /* Sync S with Ein */
+                UR_3[indx + 5*ntot] = S_from_E(UR_3[indx], Ein, g1);
+            }
+#endif
 #endif
     }
     return;
@@ -171,8 +289,12 @@ __global__ void cons_to_prim(real *cons, real *intenergy, real *prim, real g1,
         	prim[indx + 1 *ntot] = cons[indx + 1*ntot]/cons[indx];
         	prim[indx + 2 *ntot] = cons[indx + 2*ntot]/cons[indx];
         	prim[indx + 3 *ntot] = cons[indx + 3*ntot]/cons[indx];
-        	prim[indx + 4 *ntot] = intenergy[indx] * g1;
         	for(n=5;n<nf;n++) prim[indx + n*ntot] = cons[indx + n*ntot]/cons[indx];
+#ifdef DUAL_ENERGY
+            prim[indx + 4*ntot] = E_from_S(cons[indx],cons[indx +5*ntot],g1)*g1;
+#else
+        	prim[indx + 4 *ntot] = intenergy[indx] * g1;
+#endif
 
 
 

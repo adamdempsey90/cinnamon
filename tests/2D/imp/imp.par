@@ -1,6 +1,6 @@
 # R12 problem
-nx1 = 128
-nx2 = 128
+nx1 = 512
+nx2 = 512
 gamma = 1.4
 cfl = .2
 

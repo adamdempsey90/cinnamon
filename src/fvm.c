@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
     int restart = FALSE;
     int onestep = FALSE;
     int nostep = FALSE;
+    int riem = FALSE;
     char parfile[512];
     char restartfile[512];
 
@@ -68,6 +69,15 @@ int main(int argc, char *argv[]) {
                      */
                     nostep = TRUE;
                     onestep = TRUE;
+                    argc -= 1;
+                    argv = &argv[1];
+                }
+                else if ( (char)tolower(*(argv[0]+1)) == 'e' ){
+                    /* When -e flag is present we compute the exact solution
+                     * to the initial Riemann problem and exit.
+                     */
+                    nostep = TRUE;
+                    riem = TRUE;
                     argc -= 1;
                     argv = &argv[1];
                 }
@@ -128,7 +138,12 @@ int main(int argc, char *argv[]) {
 
 
     }
-
+#if defined(EXACT) && defined(RPROB)
+    if (riem) {
+    	/* Outputting exact solution to Riemann problem */
+    	sample_ic(grid,params);
+    }
+#endif
 
 
     config_kernels(&threads,&blocks,grid,params);
@@ -210,6 +225,9 @@ void cons_to_prim_grid(GridCons *grid, Parameters *params) {
 		prim[indx + 2*ntot] = cons[indx + 2*ntot]/cons[indx];
 		prim[indx + 3*ntot] = cons[indx + 3*ntot]/cons[indx];
 		prim[indx + 4*ntot] = intenergy[indx] * g1;
+#ifdef DUAL_ENERGY
+        cons[indx + 5*ntot] = prim[indx + 4*ntot] / pow(cons[indx],g1);
+#endif
 		for(n=5;n<nf;n++) prim[indx + n*ntot] = cons[indx + n*ntot]/cons[indx];
 	}
 	return;

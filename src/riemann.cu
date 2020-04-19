@@ -55,19 +55,24 @@ __global__ void riemann_fluxes(real *UL, real *UR, real *F,
             uL   = UL[indx + dir1*ntot]/dL;
             uL2  = UL[indx + dir2*ntot]/dL;
             uL3  = UL[indx + dir3*ntot]/dL;
-            eL   = UL[indx + 4*ntot];
-            pL   = (eL - .5*(uL*uL + uL2*uL2 + uL3*uL3)*dL)*g1;
-
+            eL = UL[indx + 4*ntot] ;
+#ifndef DUAL_ENERGY
+            pL   = (eL- .5*(uL*uL + uL2*uL2 + uL3*uL3)*dL)*g1;
+#else
+            pL = E_from_S(UL[indx],UL[indx + 5*ntot],g1)*g1;
+#endif
+            if (pL < PRESSUREFLOOR) pL = PRESSUREFLOOR;
 
             dR = UR[indx + 0*ntot];
             uR   = UR[indx + dir1*ntot]/dR;
             uR2  = UR[indx + dir2*ntot]/dR;
             uR3  = UR[indx + dir3*ntot]/dR;
-            eR   = UR[indx + 4*ntot];
+            eR = UR[indx + 4*ntot];
+#ifndef DUAL_ENERGY
             pR   = (eR - .5*(uR*uR + uR2*uR2 + uR3*uR3)*dR)*g1;
-
-
-            if (pL < PRESSUREFLOOR) pL = PRESSUREFLOOR;
+#else
+            pR = E_from_S(UR[indx],UR[indx + 5*ntot],g1)*g1;
+#endif
             if (pR < PRESSUREFLOOR) pR = PRESSUREFLOOR;
 
             aL   = sqrt(g*pL/dL);
@@ -175,5 +180,90 @@ __global__ void riemann_fluxes(real *UL, real *UR, real *F,
     return;
 
 }
+#ifdef RPROB
+#ifdef EXACT
 
 
+__global__ void sample_ic_kernel(real dL,real uL, real pL, real dR, real uR, real pR, real g, real x0,real t, real *x1, real *out,
+        int size_x1) {
+    int i,use_left;
+    real S,aL,aR;
+#ifdef EXACT
+    real ds,us,ps;
+#endif
+
+    real g1 = g-1;
+    real g2 = g1/(2*g);
+    real g3 = g1/(g+1);
+    real g4 = 2./(g+1);
+    real g5 = g2/g3;
+
+    int il,iu;
+
+
+    il = 0; iu = size_x1;
+    for(i = blockIdx.x*blockDim.x + threadIdx.x; i<size_x1; i+=blockDim.x*gridDim.x) {
+    	if ((i>=il)&&(i<iu))  {
+    		S = (x1[i]-x0)/t;
+
+            aL   = sqrt(g*pL/dL);
+            aR   = sqrt(g*pR/dR);
+
+            use_left = exact_sample(dL,uL,pL,aL,
+                    dR,uR,pR,aR,
+                    &ds,&us,&ps,
+                    g,g1,g2,g3,g4,g5,S,EXACT_TOL);
+            out[i + 0*size_x1] = ds;
+            out[i + 1*size_x1] = us;
+            out[i + 2*size_x1] = ps;
+
+
+
+        }
+    }
+
+    return;
+
+}
+void sample_ic(GridCons *grid, Parameters *params) {
+	int size_x1 = grid->size_x1;
+	int i;
+	real *d_out,*d_x1;
+	real *out = (real *)malloc(sizeof(real)*size_x1*3);
+	for(i=0;i<3*size_x1;i++) out[i] =0.;
+
+
+	cudaMalloc((void**)&d_x1,sizeof(real)*size_x1);
+	cudaCheckError();
+	cudaMemcpy(d_x1,&grid->xc1[-NGHX1],sizeof(real)*size_x1,cudaMemcpyHostToDevice);
+	cudaCheckError();
+
+	cudaMalloc((void**)&d_out,sizeof(real)*size_x1*3);
+	cudaCheckError();
+	cudaMemcpy(d_out,out,sizeof(real)*size_x1*3,cudaMemcpyHostToDevice);
+	cudaCheckError();
+
+	sample_ic_kernel<<<1, size_x1>>>(params->dl,params->ul,params->pl,
+			params->dr,params->ur,params->pr,
+			params->gamma,params->x0,params->tend,
+			d_x1,d_out,size_x1);
+	cudaCheckError();
+    cudaMemcpy(out,d_out,sizeof(real)*3*size_x1,cudaMemcpyDeviceToHost);
+    cudaCheckError();
+
+    FILE *f;
+    f = fopen("ic_sample.dat","w");
+    fprintf(f,"#x\tdens\tvx\tpres\n");
+    fprintf(f, "#dL=%lg,uL=%lg,pL=%lg,dR=%lg,uR=%lg,pR=%lg,g=%lg,t=%lg\n", params->dl,params->ul,params->pl,
+    		params->dr,params->ur,params->pr,params->gamma,params->tend);
+    for(i=0;i<size_x1;i++) {
+    	fprintf(f, "%lg\t%lg\t%lg\t%lg\n", grid->xc1[i-NGHX1],out[i],out[i + size_x1], out[i+2*size_x1]);
+    }
+    fclose(f);
+
+	cudaFree(d_x1); cudaCheckError();
+	cudaFree(d_out); cudaCheckError();
+	free(out);
+}
+#endif
+#endif

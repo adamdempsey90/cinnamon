@@ -21,8 +21,13 @@ __global__ void conduction_flux(real *cons, real *intenergy, real *F_1, real *F_
         /* X1 direction */ 
         if ((i>=-NGHX1)&&(i<nx1+2)&&(j>=-NGHX2)&&(j<nx2+NGHX2)&&(k>=-NGHX3)&&(k<nx3+NGHX3)) {
             indxp = indx + 1;
+#ifdef DUAL_ENERGY
+            tempc = E_from_S(cons[indx],cons[indx+ 5*ntot],g-1) * g / cons[indx]; // Cp = 1 -> rho*e = Cp*T/gamma
+            tempr = E_from_S(cons[indxp],cons[indxp + 5*ntot],g-1) * g / cons[indxp];
+#else
             tempc = intenergy[indx] * g / cons[indx]; // Cp = 1 -> rho*e = Cp*T/gamma
             tempr = intenergy[indxp] * g / cons[indxp];
+#endif
             cond = heatcond_func(.5*(cons[indx]+cons[indxp]),x1[i]+.5*dx1[i],x2[j],x3[k],delad);
                 
             F_1[indx + 4*ntot] -= cond * (tempr - tempc) / dx1[i];
@@ -32,8 +37,13 @@ __global__ void conduction_flux(real *cons, real *intenergy, real *F_1, real *F_
 #ifdef DIMS2
 		if ((i>=-NGHX1)&&(i<nx1+NGHX1)&&(j>=-NGHX2)&&(j<nx2+2)&&(k>=-NGHX3)&&(k<nx3+NGHX3)) {
 			indxp = indx + size_x1;
-			tempc = intenergy[indx] * g / cons[indx];
-			tempr = intenergy[indxp] * g / cons[indxp];
+#ifdef DUAL_ENERGY
+            tempc = E_from_S(cons[indx],cons[indx+ 5*ntot],g-1) * g / cons[indx]; // Cp = 1 -> rho*e = Cp*T/gamma
+            tempr = E_from_S(cons[indxp],cons[indxp + 5*ntot],g-1) * g / cons[indxp];
+#else
+            tempc = intenergy[indx] * g / cons[indx]; // Cp = 1 -> rho*e = Cp*T/gamma
+            tempr = intenergy[indxp] * g / cons[indxp];
+#endif
 			cond = heatcond_func(.5*(cons[indx]+cons[indxp]),x1[i],x2[j]+.5*dx2[j],x3[k],delad);
 
 			F_2[indx + 4*ntot] -= cond * (tempr - tempc) / dx2[j];
@@ -44,8 +54,13 @@ __global__ void conduction_flux(real *cons, real *intenergy, real *F_1, real *F_
 #ifdef DIMS3
 		if ((i>=-NGHX1)&&(i<nx1+NGHX1)&&(j>=-NGHX2)&&(j<nx2+NGHX2)&&(k>=-NGHX3)&&(k<nx3+2)) {
 			indxp = indx + size_x12;
-			tempc = intenergy[indx] * g / cons[indx];
-			tempr = intenergy[indxp] * g / cons[indxp];
+#ifdef DUAL_ENERGY
+            tempc = E_from_S(cons[indx],cons[indx+ 5*ntot],g-1) * g / cons[indx]; // Cp = 1 -> rho*e = Cp*T/gamma
+            tempr = E_from_S(cons[indxp],cons[indxp + 5*ntot],g-1) * g / cons[indxp];
+#else
+            tempc = intenergy[indx] * g / cons[indx]; // Cp = 1 -> rho*e = Cp*T/gamma
+            tempr = intenergy[indxp] * g / cons[indxp];
+#endif
 			cond = heatcond_func(.5*(cons[indx]+cons[indxp]),x1[i],x2[j],x3[k]+.5*dx3[k],delad);
 
 			F_3[indx + 4*ntot] -= cond * (tempr - tempc) / dx3[k];

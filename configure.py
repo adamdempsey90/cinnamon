@@ -287,7 +287,7 @@ def create_struct(lines):
 
 def add_extra_def(name,args,defs_lines,extra_defs,defname=None):
     if args[name.lower()]:
-        if not any([name.lower() in x.lower() for x in defs_lines]):
+        if not any([name.lower() in x.split()[1].lower() for x in defs_lines]):
             extra_defs.append('#define {}'.format(name.upper() if defname is None else defname))
     return
 
@@ -319,6 +319,8 @@ if __name__ == "__main__":
     parser.add_argument('--plm',action='store_true',help='Piecewise linear reconstruction.')
     parser.add_argument('--ppm',action='store_true',help='Piecewise parabolic reconstruction.')
     parser.add_argument('--ctu',action='store_true',help='Use CTU algorithm.')
+    parser.add_argument('--de',action='store_true',help='Use the Dual Energy approximation.')
+    parser.add_argument('-detol',type=float,default=1e-2,help='tolerance for discrepency between internal and kinetic energies. Requires --de flag ')
     parser.add_argument('--conduction',action='store_true',help='Enable heat conduction.')
     parser.add_argument('--viscosity',action='store_true',help='Enable viscosity.')
     parser.add_argument('--potential',action='store_true',help='Enable static gravitational potential.')
@@ -418,6 +420,7 @@ if __name__ == "__main__":
                 extra_defs.append('#define PPM')
 
 
+
     add_extra_def('viscosity',args,defs_lines,extra_defs)
     add_extra_def('conduction',args,defs_lines,extra_defs)
     add_extra_def('potential',args,defs_lines,extra_defs)
@@ -425,6 +428,13 @@ if __name__ == "__main__":
     add_extra_def('prof',args,defs_lines,extra_defs)
     add_extra_def('silent',args,defs_lines,extra_defs)
     add_extra_def('float',args,defs_lines,extra_defs,defname='ISFLOAT')
+
+
+    add_extra_def('de',args,defs_lines,extra_defs,defname='DUAL_ENERGY')
+
+    if args['de']:
+        extra_defs.append("#define DETOL {:.3e}".format(args['detol']))
+
 
 
 

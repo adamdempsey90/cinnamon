@@ -31,10 +31,15 @@ __global__ void timestep_kernel(real *cons, real *dx1, real *dx2,real *dx3, real
     	unpack_indices(indx,&i,&j,&k,size_x1,size_x12);
         if ((i>=0)&&(i<nx1)&&(j>=0)&&(j<nx2)&&(k>=0)&&(k<nx3)) {
 
+#ifdef DUAL_ENERGY
+            pres = E_from_S(cons[indx], cons[indx + 5*ntot],g-1)*(g-1);
+
+#else
             pres = (g-1)*(cons[indx + 4*ntot]-
                     .5*(  cons[indx + 1*ntot] * cons[indx + 1*ntot]
                         + cons[indx + 2*ntot] * cons[indx + 2*ntot]
                         + cons[indx + 3*ntot] * cons[indx + 3*ntot] )/cons[indx]);
+#endif
 
             cs = sqrt( g* pres/cons[indx]);
             dt1 = dx1[i]/(fabs(cons[indx + 1*ntot]/cons[indx]) + cs);

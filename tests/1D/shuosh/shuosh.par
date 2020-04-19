@@ -1,19 +1,19 @@
 nx1 = 128
 gamma = 1.4
 cfl = .2
-x1_min = 0.
+x1_min = -1.
 x1_max = 1.
-tend = .15
+tend = .2
 Nout0d = 100
 Nout1d = 10
 outputdir = out/
 outputname = test
 
-
-x0 = .5
-dL = 1.
-pL = .4
-uL = -2.
-dR = 1.
-pR = .4
-uR = 2.
+x0 = -.8
+dL = 3.857143
+pL = 10.3333
+uL = 2.629369
+dR = .2
+pR = 1.
+uR = 0.
+k = 5

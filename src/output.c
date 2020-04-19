@@ -61,6 +61,8 @@ void snapshot_1d(char *name, GridCons *grid, Parameters *params) {
 	write_hdf5_real(xm1,dims_x1,1,data_id,"xm1");
 	write_hdf5_real(&prim[0*ntot], dims3, 1, data_id, "Density");
 	write_hdf5_real(&prim[1*ntot], dims3, 1, data_id, "Vx1");
+	write_hdf5_real(&prim[2*ntot], dims3, 1, data_id, "Vx2");
+	write_hdf5_real(&prim[3*ntot], dims3, 1, data_id, "Vx3");
 	write_hdf5_real(&prim[4*ntot], dims3, 1, data_id, "Pressure");
 
 	for(i=5;i<nf;i++) {
@@ -115,6 +117,7 @@ void snapshot_2d(char *name, GridCons *grid, Parameters *params) {
 	write_hdf5_real(&prim[0*ntot], dims3, 2, data_id, "Density");
 	write_hdf5_real(&prim[1*ntot], dims3, 2, data_id, "Vx1");
 	write_hdf5_real(&prim[2*ntot], dims3, 2, data_id, "Vx2");
+	write_hdf5_real(&prim[3*ntot], dims3, 2, data_id, "Vx3");
 	write_hdf5_real(&prim[4*ntot], dims3, 2, data_id, "Pressure");
 
 	for(i=5;i<nf;i++) {

@@ -1,5 +1,5 @@
-nx1 = 128
-gamma = 1.6666667
+nx1 = 400
+gamma = 1.66666667
 cfl = .2
 x1_min = 0.
 x1_max = 1.
@@ -9,10 +9,10 @@ Nout1d = 10
 outputdir = out/
 outputname = test
 
-x0 = .5
-dL = 1.
-pL = 1e-6
-uL = 1.
-dR = 1.
-pR = 1e-6
-uR = -1.
+L = 1.
+d0 = 1.
+d0_amp = 0.
+p0 = .6
+p0_amp = 1e-6
+u0 = -1.
+u0_amp = 0.

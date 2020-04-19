@@ -1,0 +1,21 @@
+nx1 = 400
+gamma = 1.66666667
+cfl = .2
+x1_min = 0.
+x1_max = 1.
+tend = 1.
+Nout0d = 100
+Nout1d = 10
+outputdir = out/
+outputname = test
+
+
+L = 1.
+d0 = 1.
+p0 = .6
+u0 = -1.
+v0 = 0.
+amp_r = 0.
+amp_l = 0.
+amp_c = 1e-6
+amp_s = 0.

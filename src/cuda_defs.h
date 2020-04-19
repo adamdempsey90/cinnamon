@@ -54,6 +54,11 @@ __inline __device__ real MAX2(real a, real b) {return (a>b) ? a : b;}
 __inline __device__ real MIN3(real a, real b, real c) {return (a<b) ? ( (a<c) ? a : c ) : ( (b<c) ? b : c );}
 __inline __device__ real MAX3(real a, real b, real c) {return (a>b) ? ( (a>c) ? a : c ) : ( (b>c) ? b : c );}
 
+__inline __device__ real mypow(real a, real b) {return exp(log(a)*b);}
+#ifdef DUAL_ENERGY
+__inline__ __device__ real E_from_S(real rho, real S, real g1) {return S*mypow(rho,g1)/g1;}
+__inline__ __device__ real S_from_E(real rho, real ein, real g1) {return g1*ein/mypow(rho,g1);}
+#endif
 
 /* driver.cu */
  void driver(GridCons *grid, Parameters *params);
@@ -94,6 +99,8 @@ void algogas_single(real dt,
         real *dt_arr,
         GridCons *grid, Parameters *params);
 
+__device__ void cua_ifelse(real condition, int *wtrue, int *wfalse);
+
 __global__ void zero_flux_array(real *F1, real *F2, real *F3, int ntot, int nf);
 
 /* update.cu */
@@ -101,11 +108,11 @@ __global__ void compute_dhalf(real *cons, real *dhalf, real *F_1, real *F_2,real
         real *dx1, real *dx2, real *dx3, real dt, int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf);
 
 __global__ void update_cons(real *cons, real *intenergy, real *F_1, real *F_2, real *F_3,
-        real *dx1, real *dx2, real *dx3, real dt, int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf);
+        real *dx1, real *dx2, real *dx3, real g1, real dt, int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf);
 
 __global__ void transverse_update(real *UL_1, real *UL_2, real *UL_3,
         real *UR_1, real *UR_2, real *UR_3,
-        real *F_1, real *F_2, real *F_3, real *dx1, real *dx2, real *dx3, real dt,
+        real *F_1, real *F_2, real *F_3, real *dx1, real *dx2, real *dx3, real g1, real dt,
         int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf);
 __global__ void cons_to_prim(real *cons, real *intenergy, real *prim, real g1,
         int nx1, int nx2, int nx3, int size_x1, int size_x12, int ntot, int offset, int nf);

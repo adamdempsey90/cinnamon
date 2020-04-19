@@ -12,6 +12,7 @@ void snapshot_3d(char *name, GridCons *grid, Parameters *params);
 void read_restart(const char *fname, GridCons *grid, Parameters *params);
 void allocate(GridCons *grid, Parameters *params);
 void init_uniform_mesh(GridCons *grid, Parameters *params);
+void sample_ic(GridCons *grid, Parameters *params);
 }
 
 

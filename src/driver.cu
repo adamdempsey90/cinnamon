@@ -176,7 +176,7 @@ void driver(GridCons *grid, Parameters *params) {
             &nan_res,
             grid,params);
 
-    sprintf(fname, "%s_%d.h5",params->outputname, 0);
+    sprintf(fname, "%s_%d",params->outputname, 0);
 #ifdef DIMS3
     snapshot_3d(fname, grid, params);
 #else

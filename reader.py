@@ -51,12 +51,10 @@ class Sim():
             self.pres = f['Pressure'][...].reshape(*shape)
             self.vx1 = f['Vx1'][...].reshape(*shape)
             self.ke = .5*self.rho*self.vx1**2
-            if dims > 1:
-                self.vx2 = f['Vx2'][...].reshape(*shape)
-                self.ke += .5*self.rho*self.vx2**2
-            if dims > 2:
-                self.vx3 = f['Vx3'][...].reshape(*shape)
-                self.ke += .5*self.rho*self.vx3**2
+            self.vx2 = f['Vx2'][...].reshape(*shape)
+            self.ke += .5*self.rho*self.vx2**2
+            self.vx3 = f['Vx3'][...].reshape(*shape)
+            self.ke += .5*self.rho*self.vx3**2
 
 
             try:
@@ -75,10 +73,8 @@ class Sim():
                 self.rho = self.rho[3:-3]
                 self.pres = self.pres[3:-3]
                 self.vx1 = self.vx1[3:-3]
-                if dims > 1:
-                    self.vx2 = self.vx2[3:-3]
-                if dims > 2:
-                    self.vx3 = self.vx3[3:-3]
+                self.vx2 = self.vx2[3:-3]
+                self.vx3 = self.vx3[3:-3]
                 self.ke = self.ke[3:-3]
                 try:
                     self.scalar = self.scalar[3:-3]
@@ -88,16 +84,15 @@ class Sim():
                 self.rho = self.rho[3:-3,3:-3]
                 self.pres = self.pres[3:-3,3:-3]
                 self.vx1 = self.vx1[3:-3,3:-3]
-                if dims > 1:
-                    self.vx2 = self.vx2[3:-3,3:-3]
-                if dims > 2:
-                    self.vx3 = self.vx3[3:-3,3:-3]
+                self.vx2 = self.vx2[3:-3,3:-3]
+                self.vx3 = self.vx3[3:-3,3:-3]
                 self.ke = self.ke[3:-3,3:-3]
                 try:
                     self.scalar = self.scalar[3:-3,3:-3]
                 except AttributeError:
                     pass
 
+        self.S = self.pres/self.rho**self.gamma
         self.intenergy = self.pres/(self.gamma-1)
         self.energy = self.ke + self.intenergy
         self.cs = np.sqrt(self.gamma*self.pres/self.rho)
@@ -119,10 +114,11 @@ class Sim():
         elif self.dims == 2:
             return self.plot2D(**kargs)
 
-    def plot1D(self,val='rho',func=None,shift=0,scale=1,fig=None,ax=None,ylbl='',**kargs):
+    def plot1D(self,val='rho',func=None,shift=0,scale=1,ax=None,ylbl='',**kargs):
         first = ax is None
         if first:
             fig,ax=plt.subplots(figsize=(8,6))
+        fig = ax.get_figure()
         if func is not None:
             q = func(self)
         else:
@@ -135,7 +131,7 @@ class Sim():
         ax.text(.05,.05,'$t={:.2f}$'.format(self.time),transform=ax.transAxes,fontsize=20)
         fig.tight_layout()
         return fig,ax,line
-    def plot2D(self,val='rho',func = None,norm=None, shift=0,scale=1,fig=None,ax=None,ylbl='',
+    def plot2D(self,val='rho',func = None,norm=None, shift=0,scale=1,ax=None,ylbl='',
             cmap='viridis',conts=None,figsize=None,**kargs):
         first = ax is None
         if first:
@@ -143,6 +139,7 @@ class Sim():
                 fig,ax=plt.subplots(figsize=(4*self.Lx2/self.Lx1,4))
             else:
                 fig,ax=plt.subplots(figsize=figsize)
+        fig = ax.get_figure()
         if func is not None:
             q = func(self)
         else:
@@ -163,9 +160,10 @@ class Sim():
             cont = ax.contour(q,levels=conts,origin='lower',extent=self.extent,norm=norm,colors='k',**kargs)
         fig.tight_layout()
         return fig,ax,cb,img
-    def plotavg(self,val='rho',axis=1,func = None,norm=1,shift=0, fig=None,ax=None,ylbl='',**kargs):
+    def plotavg(self,val='rho',axis=1,func = None,norm=1,shift=0, ax=None,ylbl='',**kargs):
         if ax is None:
             fig,ax=plt.subplots(figsize=(8,6))
+        fig = ax.get_figure()
         if func is not None:
             q = func(self).mean(axis=axis)
         else:
@@ -181,9 +179,10 @@ class Sim():
         ax.tick_params(labelsize=20)
         return fig,ax
 
-    def contour(self,val='rho',colorbar=False,func = None,norm=colors.Normalize(), fig=None,ax=None,ylbl='',**kargs):
+    def contour(self,val='rho',colorbar=False,func = None,norm=colors.Normalize(), ax=None,ylbl='',**kargs):
         if ax is None:
             fig,ax=plt.subplots(figsize=(6,6))
+        fig =ax.get_figure()
         if func is not None:
             q = func(self)
         else:
@@ -200,13 +199,13 @@ class Sim():
             cb = None
         ax.minorticks_on()
         return fig,ax,cb,cont
-    def presconts(self,conts,streams=True,fig=None,ax=None,**kargs):
+    def presconts(self,conts,streams=True,ax=None,**kargs):
         if ax is not None:
-            self.plot('pres',fig=fig,ax=ax,**kargs)
+            self.plot('pres',ax=ax,**kargs)
         else:
             fig,ax,_,_ = self.plot('pres',**kargs)
 
-        self.contour('rho',levels=conts,fig=fig,ax=ax,colors='k',clrbar=False)
+        self.contour('rho',levels=conts,ax=ax,colors='k',clrbar=False)
         xlims = ax.get_xlim()
         ylims = ax.get_ylim()
         if streams:
@@ -215,13 +214,14 @@ class Sim():
         ax.set_ylim(ylims)
         return fig,ax
 
-    def sum(self,fig=None,axes=None,**kargS):
+    def sum(self,axes=None,**kargS):
         if axes is None:
             fig,axes = plt.subplots(2,2,figsize=(8,8))
-        self.plot(val='rho',ax=axes[0,0],fig=fig,ylbl='Density')
-        self.plot(val='vx1',ax=axes[0,1],fig=fig,ylbl='Velocity')
-        self.plot(val='pres',ax=axes[1,0],fig=fig,ylbl='Pressure')
-        self.plot(func=lambda x: x.pres/(x.gamma-1)/x.rho,ax=axes[1,1],fig=fig,ylbl='Energy')
+        fig = axes.flatten()[0].get_figure()
+        self.plot(val='rho',ax=axes[0,0],ylbl='Density')
+        self.plot(val='vx1',ax=axes[0,1],ylbl='Velocity')
+        self.plot(val='pres',ax=axes[1,0],ylbl='Pressure')
+        self.plot(func=lambda x: x.pres/(x.gamma-1)/x.rho,ax=axes[1,1],ylbl='Energy')
         fig.tight_layout()
         return fig,axes
 
